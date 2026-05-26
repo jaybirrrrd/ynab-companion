@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>YNAB Companion · Review Amazon Matches</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+<div class="wrap">
+  <div class="logo">YNAB <em>Companion</em></div>
+  <div class="tagline">Amazon Importer</div>
+
+  <div class="section" id="progress-section">
+    <div class="section-title" id="progress-title">Scraping Amazon</div>
+    <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:6px">
+      <div class="prog-label" id="progress-label">Starting…</div>
+      <div class="prog-label" id="progress-percent" style="font-weight:500">0%</div>
+    </div>
+    <div class="prog-wrap"><div class="prog-bar" id="progress-bar" style="width:0%"></div></div>
+    <div class="hint" id="progress-hint" style="margin-top:10px">Hidden Chrome window is opening Amazon pages in the background. Don't close this tab.</div>
+  </div>
+
+  <div id="results" class="hidden">
+    <div class="row" style="justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-family:'Instrument Serif',serif;font-size:20px">Matches Found</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="match-summary"></div>
+      </div>
+      <div class="row">
+        <button class="btn btn-ghost btn-sm" id="deselect-all">Deselect all</button>
+        <button class="btn btn-ghost btn-sm" id="select-all">Select all</button>
+      </div>
+    </div>
+    <div id="match-list"></div>
+    <div class="divider"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn btn-primary" id="push-btn">Update YNAB Memos</button>
+    </div>
+    <div id="push-prog" class="hidden" style="margin-top:12px">
+      <div class="prog-label" id="push-label">Updating…</div>
+      <div class="prog-wrap"><div class="prog-bar" id="push-bar" style="width:0%"></div></div>
+    </div>
+    <div id="push-result"></div>
+  </div>
+
+  <div id="error" class="hidden">
+    <div class="alert alert-error" id="error-text"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn btn-ghost btn-sm" id="open-settings">Open Settings</button>
+    </div>
+  </div>
+</div>
+<script src="review.js"></script>
+</body>
+</html>

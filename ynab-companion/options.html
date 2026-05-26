@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>YNAB Companion · Settings</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+<div class="wrap">
+  <div class="logo">YNAB <em>Companion</em></div>
+  <div class="tagline">Settings</div>
+
+  <div class="section">
+    <div class="section-title">YNAB</div>
+    <div class="field">
+      <label>Personal Access Token</label>
+      <input type="password" id="ynab-token" placeholder="paste your YNAB token here…" autocomplete="off">
+      <div class="hint">Get a token at <a href="https://app.ynab.com/settings/developer" target="_blank">app.ynab.com/settings/developer</a>.</div>
+    </div>
+    <div class="row">
+      <button class="btn btn-primary" id="connect-ynab">Connect &amp; load budgets</button>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label>Budget</label>
+      <select id="budget" disabled>
+        <option value="">— connect to load budgets —</option>
+      </select>
+    </div>
+    <div id="ynab-msg"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Claude API</div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="anthropic-key" placeholder="sk-ant-…" autocomplete="off">
+      <div class="hint">Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com/settings/keys</a>. Used to summarize Amazon item titles into short memos.</div>
+    </div>
+    <div class="field">
+      <label>Model</label>
+      <select id="anthropic-model">
+        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (fast, default)</option>
+        <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+        <option value="claude-opus-4-7">claude-opus-4-7</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Scrape window</div>
+    <div class="field">
+      <label>Days of YNAB transactions to match against</label>
+      <input type="text" id="ynab-days" value="45">
+      <div class="hint">When matching Amazon orders, the extension fetches YNAB transactions from the last N days. Defaults to 45.</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn btn-primary" id="save">Save settings</button>
+    <span id="save-msg" class="prog-label" style="margin-left:8px"></span>
+  </div>
+</div>
+<script src="options.js"></script>
+</body>
+</html>

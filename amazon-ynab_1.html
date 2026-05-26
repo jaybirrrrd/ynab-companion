@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon → YNAB</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f0e0c;--surface:#1a1916;--border:#2e2c28;
+  --accent:#e8c547;--adim:#c9a93a;--text:#f0ede6;
+  --muted:#7a7568;--dim:#5a5848;
+  --green:#5cba8a;--red:#e05c5c;--yellow:#e8a547;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;padding:48px 24px}
+.wrap{max-width:740px;margin:0 auto}
+.logo{font-family:'Instrument Serif',serif;font-size:2.2rem;letter-spacing:-0.02em;margin-bottom:6px}
+.logo em{color:var(--accent);font-style:italic}
+.tagline{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:48px}
+.step{border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;transition:border-color 0.2s}
+.step.active{border-color:var(--accent)}
+.step.done{border-color:#2e4a3a}
+.step-head{display:flex;align-items:center;gap:14px;padding:16px 20px}
+.num{width:28px;height:28px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:var(--muted);flex-shrink:0;transition:background 0.2s,color 0.2s}
+.step.active .num{background:var(--accent);color:#000}
+.step.done .num{background:var(--green);color:#000}
+.step-title{font-size:14px;font-weight:500;flex:1}
+.step-badge{font-size:11px;color:var(--green);font-family:'DM Mono',monospace}
+.step-body{padding:0 20px 20px}
+label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px}
+input[type=password],select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;transition:border-color 0.2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+select{appearance:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7568' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+textarea{resize:vertical;min-height:80px}
+.field{margin-bottom:14px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.15s}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:var(--adim)}
+.btn-primary:disabled{background:#2e2c28;color:var(--dim);cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+.btn-sm{padding:7px 14px;font-size:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.alert{padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.5;margin-top:10px}
+.alert-error{background:rgba(224,92,92,0.08);border:1px solid rgba(224,92,92,0.25);color:var(--red)}
+.alert-success{background:rgba(92,186,138,0.08);border:1px solid rgba(92,186,138,0.25);color:var(--green)}
+.prog-wrap{background:var(--border);border-radius:4px;height:4px;overflow:hidden;margin:8px 0 4px}
+.prog-bar{height:100%;background:var(--accent);border-radius:4px;transition:width 0.3s}
+.prog-label{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.howto{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px}
+.howto-title{font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px}
+.howto ol{padding-left:18px}
+.howto li{font-size:12px;color:var(--muted);line-height:2}
+.howto li strong{color:var(--text)}
+.howto li a{color:var(--accent);text-decoration:none}
+.howto li a:hover{text-decoration:underline}
+.match-card{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.match-card.ok{border-color:#2e4a3a}
+.match-card.miss{border-color:#4a2e2e}
+.match-top{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.check{width:18px;height:18px;border-radius:4px;border:1px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s}
+.check.on{background:var(--accent);border-color:var(--accent)}
+.check.on::after{content:'✓';font-size:10px;color:#000;font-weight:700}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.ok{background:var(--green)}
+.dot.miss{background:var(--red)}
+.match-info{flex:1;min-width:0}
+.match-payee{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.match-meta{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.match-amt{font-size:13px;font-weight:500;font-family:'DM Mono',monospace;flex-shrink:0}
+.match-items{padding:0 16px 12px 46px}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin:2px 3px 2px 0;font-family:'DM Mono',monospace}
+.tag.green{background:rgba(92,186,138,0.1);border:1px solid rgba(92,186,138,0.2);color:var(--green)}
+.tag.yellow{background:rgba(232,165,71,0.1);border:1px solid rgba(232,165,71,0.2);color:var(--yellow)}
+.memo-preview{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:6px;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);word-break:break-all}
+.memo-preview strong{color:var(--text)}
+.divider{border:none;border-top:1px solid var(--border);margin:20px 0}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo">Amazon <em>→</em> YNAB</div>
+  <div class="tagline">Match purchases · Update memos · Stay categorized</div>
+
+  <!-- Step 1 -->
+  <div class="step active" id="s1">
+    <div class="step-head">
+      <div class="num">1</div>
+      <div class="step-title">Connect YNAB</div>
+      <div class="step-badge" id="s1-badge"></div>
+    </div>
+    <div class="step-body">
+      <div class="field">
+        <label>Personal Access Token</label>
+        <input type="password" id="token" placeholder="paste your YNAB token here…" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" onclick="connectYNAB()">Connect</button>
+      <div id="s1-err"></div>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step" id="s2">
+    <div class="step-head">
+      <div class="num">2</div>
+      <div class="step-title">Select Budget</div>
+      <div class="step-badge" id="s2-badge"></div>
+    </div>
+    <div class="step-body hidden" id="s2-body">
+      <div class="field">
+        <label>Budget</label>
+        <select id="budget" onchange="onBudget()">
+          <option value="">— choose —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step" id="s3">
+    <div class="step-head">
+      <div class="num">3</div>
+      <div class="step-title">Import Amazon Orders</div>
+      <div class="step-badge" id="s3-badge"></div>
+    </div>
+    <div class="step-body hidden" id="s3-body">
+      <div class="howto">
+        <div class="howto-title">How to get your order data from Claude</div>
+        <ol>
+          <li>Make sure you're logged into Amazon — <a href="https://www.amazon.com/your-orders/orders" target="_blank">open your Orders page ↗</a></li>
+          <li>In this Claude chat, say: <strong>"Please scrape my Amazon orders"</strong></li>
+          <li>Claude scrapes via the Chrome extension and posts back summarized JSON</li>
+          <li>Copy the JSON block and paste it below, then click <strong>Load Orders</strong></li>
+        </ol>
+      </div>
+      <div class="field">
+        <label>Summarized Amazon Orders JSON (from Claude)</label>
+        <textarea id="json-in" rows="5" placeholder='[{"orderId":"…","date":"…","totalAmount":0,"items":[{"title":"Polymer Clay"}]}]' oninput="document.getElementById('load-btn').disabled=this.value.trim().length<5"></textarea>
+      </div>
+      <button class="btn btn-primary" id="load-btn" onclick="loadOrders()" disabled>Load Orders</button>
+      <div id="s3-err"></div>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="step" id="s4">
+    <div class="step-head">
+      <div class="num">4</div>
+      <div class="step-title">Review Matches &amp; Update YNAB</div>
+    </div>
+    <div class="step-body hidden" id="s4-body">
+      <div id="s4-prog" class="hidden">
+        <div class="prog-label" id="prog-label">Working…</div>
+        <div class="prog-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+      </div>
+      <div id="results" class="hidden">
+        <div class="row" style="justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-family:'Instrument Serif',serif;font-size:20px">Matches Found</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px" id="match-summary"></div>
+          </div>
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" onclick="toggleAll(false)">Deselect all</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleAll(true)">Select all</button>
+          </div>
+        </div>
+        <div id="match-list"></div>
+        <div class="divider"></div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn btn-primary" id="push-btn" onclick="pushMemos()">Update YNAB Memos</button>
+        </div>
+        <div id="push-prog" class="hidden" style="margin-top:12px">
+          <div class="prog-label" id="push-label">Updating…</div>
+          <div class="prog-wrap"><div class="prog-bar" id="push-bar" style="width:0%"></div></div>
+        </div>
+        <div id="push-result"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+var TOKEN='',BUDGET_ID='';
+var amazonOrders=[],matches=[];
+
+async function connectYNAB(){
+  TOKEN=document.getElementById('token').value.trim();
+  if(!TOKEN)return;
+  try{
+    var r=await fetch('https://api.youneedabudget.com/v1/budgets',{headers:{Authorization:'Bearer '+TOKEN}});
+    if(!r.ok)throw new Error('Status '+r.status+' — check your token');
+    var d=await r.json();
+    var sel=document.getElementById('budget');
+    d.data.budgets.forEach(function(b){var o=document.createElement('option');o.value=b.id;o.textContent=b.name;sel.appendChild(o);});
+    stepDone(1,'Connected');stepOpen(2);
+  }catch(e){showErr('s1-err',e.message);}
+}
+
+function onBudget(){
+  BUDGET_ID=document.getElementById('budget').value;
+  if(!BUDGET_ID)return;
+  var sel=document.getElementById('budget');
+  stepDone(2,sel.options[sel.selectedIndex].text);
+  stepOpen(3);
+}
+
+function loadOrders(){
+  var text=document.getElementById('json-in').value.trim();
+  try{
+    var data=JSON.parse(text);
+    if(!Array.isArray(data))throw new Error('Expected a JSON array');
+    if(!data.length)throw new Error('Array is empty');
+    amazonOrders=data;
+    stepDone(3,data.length+' orders');
+    stepOpen(4);
+    runMatch();
+  }catch(e){showErr('s3-err','Parse error: '+e.message);}
+}
+
+async function runMatch(){
+  show('s4-prog');hide('results');
+  prog(10,'Fetching YNAB transactions…');
+  try{
+    var since=new Date();since.setDate(since.getDate()-45);
+    var r=await fetch(
+      'https://api.youneedabudget.com/v1/budgets/'+BUDGET_ID+'/transactions?since_date='+since.toISOString().split('T')[0],
+      {headers:{Authorization:'Bearer '+TOKEN}}
+    );
+    if(!r.ok)throw new Error('YNAB error '+r.status);
+    var d=await r.json();
+    var txs=d.data.transactions.filter(function(t){
+      return t.payee_name&&t.payee_name.toLowerCase().includes('amazon')&&t.amount<0;
+    });
+    prog(70,'Matching transactions…');
+    matches=doMatch(txs,amazonOrders);
+    prog(100,'Done!');
+    setTimeout(render,300);
+  }catch(e){
+    document.getElementById('s4-prog').innerHTML='<div class="alert alert-error">⚠ '+esc(e.message)+'</div>';
+  }
+}
+
+function doMatch(txs,orders){
+  var used=new Set(),results=[];
+  txs.forEach(function(tx){
+    var txAmt=Math.abs(tx.amount)/1000;
+    var txDate=new Date(tx.date+'T12:00:00');
+    var cands=orders.filter(function(o){
+      if(used.has(o.orderId))return false;
+      var days=Math.abs((new Date(o.date+'T12:00:00')-txDate)/86400000);
+      var pct=o.totalAmount>0?Math.abs(o.totalAmount-txAmt)/txAmt:1;
+      return days<=7&&pct<=0.02;
+    }).sort(function(a,b){
+      return Math.abs(new Date(a.date+'T12:00:00')-txDate)-Math.abs(new Date(b.date+'T12:00:00')-txDate);
+    });
+    if(cands.length){
+      used.add(cands[0].orderId);
+      var memo=cands[0].items.map(function(i){return i.title;}).join(', ');
+      if(memo.length>200)memo=memo.slice(0,197)+'…';
+      results.push({tx:tx,order:cands[0],memo:memo,sel:true,matched:true});
+    }else{
+      results.push({tx:tx,order:null,memo:null,sel:false,matched:false});
+    }
+  });
+  return results;
+}
+
+function render(){
+  hide('s4-prog');show('results');
+  var ok=matches.filter(function(m){return m.matched;});
+  var miss=matches.filter(function(m){return !m.matched;});
+  document.getElementById('match-summary').textContent=ok.length+' matched · '+miss.length+' unmatched';
+  var list=document.getElementById('match-list');
+  list.innerHTML='';
+  ok.concat(miss).forEach(function(m){
+    var i=matches.indexOf(m);
+    var amt=(Math.abs(m.tx.amount)/1000).toFixed(2);
+    var el=document.createElement('div');
+    el.className='match-card '+(m.matched?'ok':'miss');
+    var itemsHtml='';
+    if(m.matched){
+      itemsHtml=(m.order.items.length
+        ?m.order.items.map(function(it){return '<span class="tag green">'+esc(it.title)+'</span>';}).join('')
+        :'<span class="tag yellow">Matched by amount — no item names</span>');
+      if(m.memo)itemsHtml+='<div class="memo-preview"><strong>Memo:</strong> '+esc(m.memo)+'</div>';
+    }else{
+      itemsHtml='<span class="tag yellow">No order matched within ±7 days / ±2%</span>';
+    }
+    el.innerHTML=
+      '<div class="match-top">'+
+        '<div class="check '+(m.sel?'on':'')+'" id="chk-'+i+'" onclick="toggle('+i+')" style="'+(m.matched?'':'visibility:hidden')+'"></div>'+
+        '<div class="dot '+(m.matched?'ok':'miss')+'"></div>'+
+        '<div class="match-info">'+
+          '<div class="match-payee">'+esc(m.tx.payee_name||'Amazon')+'</div>'+
+          '<div class="match-meta">'+m.tx.date+' · '+esc(m.tx.account_name)+'</div>'+
+        '</div>'+
+        '<div class="match-amt">$'+amt+'</div>'+
+      '</div>'+
+      '<div class="match-items">'+itemsHtml+'</div>';
+    list.appendChild(el);
+  });
+}
+
+function toggle(i){
+  matches[i].sel=!matches[i].sel;
+  document.getElementById('chk-'+i).className='check '+(matches[i].sel?'on':'');
+}
+function toggleAll(v){
+  matches.forEach(function(m,i){
+    if(!m.matched)return;
+    m.sel=v;
+    var c=document.getElementById('chk-'+i);
+    if(c)c.className='check '+(v?'on':'');
+  });
+}
+
+async function pushMemos(){
+  var todo=matches.filter(function(m){return m.matched&&m.sel&&m.memo;});
+  if(!todo.length){alert('No matches selected.');return;}
+  document.getElementById('push-btn').disabled=true;
+  show('push-prog');document.getElementById('push-result').innerHTML='';
+  var done=0,errs=0;
+  for(var k=0;k<todo.length;k++){
+    try{
+      var r=await fetch(
+        'https://api.youneedabudget.com/v1/budgets/'+BUDGET_ID+'/transactions/'+todo[k].tx.id,
+        {method:'PUT',headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'},
+         body:JSON.stringify({transaction:{memo:todo[k].memo}})}
+      );
+      if(!r.ok)throw new Error();
+      done++;
+    }catch(e){errs++;}
+    pushProg(Math.round(((done+errs)/todo.length)*100),'Updated '+(done+errs)+' of '+todo.length+'…');
+  }
+  hide('push-prog');
+  document.getElementById('push-result').innerHTML=errs===0
+    ?'<div class="alert alert-success">✓ Updated '+done+' memo'+(done!==1?'s':'')+' in YNAB.</div>'
+    :'<div class="alert alert-error">Updated '+done+', failed '+errs+'.</div>';
+  document.getElementById('push-btn').disabled=false;
+}
+
+function prog(pct,label){document.getElementById('prog-bar').style.width=pct+'%';document.getElementById('prog-label').textContent=label;}
+function pushProg(pct,label){document.getElementById('push-bar').style.width=pct+'%';document.getElementById('push-label').textContent=label;}
+function stepDone(n,badge){
+  var s=document.getElementById('s'+n);
+  s.classList.remove('active');s.classList.add('done');
+  s.querySelector('.num').textContent='✓';
+  var b=document.getElementById('s'+n+'-badge');if(b)b.textContent=badge;
+}
+function stepOpen(n){
+  var s=document.getElementById('s'+n);s.classList.add('active');
+  var b=document.getElementById('s'+n+'-body');if(b)b.classList.remove('hidden');
+  s.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function show(id){document.getElementById(id).classList.remove('hidden');}
+function hide(id){document.getElementById(id).classList.add('hidden');}
+function showErr(id,msg){var el=document.getElementById(id);if(el)el.innerHTML='<div class="alert alert-error">⚠ '+esc(msg)+'</div>';}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
