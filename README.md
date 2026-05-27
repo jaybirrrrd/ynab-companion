@@ -1,4 +1,4 @@
-# ynab-helper
+# ynab-companion
 
 Personal tools for automating YNAB busywork.
 
