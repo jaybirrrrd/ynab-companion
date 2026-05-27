@@ -13,7 +13,7 @@ A Chrome extension for two YNAB chores:
 
 → See [ynab-companion/README.md](./ynab-companion/README.md) for install and usage instructions.
 
-### `amazon-ynab.html` — Standalone HTML Tool (legacy)
+### [`amazon-ynab.html`](./amazon-ynab.html) — Standalone HTML Tool (legacy)
 
 An earlier single-file version of the Amazon → YNAB matcher. Open locally in Chrome — no install needed. The Chrome extension above supersedes this for most workflows, but the HTML file is useful for one-off runs without installing the extension.
 
