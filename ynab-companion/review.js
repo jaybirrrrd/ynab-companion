@@ -154,7 +154,7 @@ function makeMatchCard(m, i) {
     }
     if (m.memo) {
       itemsHtml += '<div class="memo-preview">' +
-        '<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Memo (editable)</label>' +
+        '<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Memo</label>' +
         '<input class="memo-input" data-i="' + i + '" type="text" value="' + esc(m.memo) + '" maxlength="200" ' +
         'style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:12px">' +
         '</div>';
