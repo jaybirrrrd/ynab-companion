@@ -4,7 +4,7 @@ const DEFAULTS = {
   ynabToken: '',
   ynabBudgetId: '',
   ynabBudgetName: '',
-  ynabDays: 45,
+  ynabDays: 30,
   anthropicKey: '',
   anthropicModel: 'claude-haiku-4-5-20251001'
 };
@@ -70,7 +70,7 @@ $('save').addEventListener('click', async () => {
     ynabToken: $('ynab-token').value.trim(),
     ynabBudgetId: sel.value,
     ynabBudgetName: selectedOpt ? selectedOpt.dataset.name || selectedOpt.textContent : '',
-    ynabDays: Number.isFinite(days) && days > 0 ? days : 45,
+    ynabDays: Number.isFinite(days) && days > 0 ? days : 30,
     anthropicKey: $('anthropic-key').value.trim(),
     anthropicModel: $('anthropic-model').value
   });

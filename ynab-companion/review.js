@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-let TOKEN = '', BUDGET_ID = '', YNAB_DAYS = 45;
+let TOKEN = '', BUDGET_ID = '', YNAB_DAYS = 30;
 let amazonOrders = [];
 let matches = [];
 let phase = 'idle'; // 'idle' | 'scraping' | 'matching' | 'results' | 'error'
@@ -30,7 +30,7 @@ function setProgress(pct, label, title, hint) {
 
 async function init() {
   const s = await chrome.storage.local.get({
-    ynabToken: '', ynabBudgetId: '', ynabDays: 45,
+    ynabToken: '', ynabBudgetId: '', ynabDays: 30,
     pendingScrape: null, scrapeStatus: null
   });
   TOKEN = s.ynabToken;
@@ -97,10 +97,13 @@ async function runMatching() {
     if (!r.ok) throw new Error('YNAB error ' + r.status);
     const d = await r.json();
     setProgress(70, 'Matching transactions…', 'Matching to YNAB');
-    const txs = d.data.transactions.filter((t) =>
+    const allAmazon = d.data.transactions.filter((t) =>
       t.payee_name && t.payee_name.toLowerCase().includes('amazon') && t.amount < 0
     );
+    const txs = allAmazon.filter((t) => !t.memo);
+    const skipped = allAmazon.length - txs.length;
     matches = doMatch(txs, amazonOrders);
+    matches._skippedWithMemo = skipped;
     setProgress(100, 'Done', 'Matching to YNAB');
     setTimeout(render, 200);
   } catch (e) {
@@ -140,7 +143,9 @@ function render() {
   show('results');
   const ok = matches.filter((m) => m.matched);
   const miss = matches.filter((m) => !m.matched);
-  $('match-summary').textContent = ok.length + ' matched · ' + miss.length + ' unmatched';
+  const skipped = matches._skippedWithMemo || 0;
+  $('match-summary').textContent = ok.length + ' matched · ' + miss.length + ' unmatched' +
+    (skipped ? ' · ' + skipped + ' skipped (already have memos)' : '');
   const list = $('match-list');
   list.innerHTML = '';
   ok.concat(miss).forEach((m) => {
@@ -153,7 +158,7 @@ function render() {
       itemsHtml = (m.order.items.length
         ? m.order.items.map((it) => '<span class="tag green">' + esc(it.title) + '</span>').join('')
         : '<span class="tag yellow">Matched by amount — no item names</span>');
-      if (m.memo) itemsHtml += '<div class="memo-preview"><strong>Memo:</strong> ' + esc(m.memo) + '</div>';
+      if (m.memo) itemsHtml += '<div class="memo-preview"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Memo (editable)</label><input class="memo-input" data-i="' + i + '" type="text" value="' + esc(m.memo) + '" maxlength="200" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:12px"></div>';
     } else {
       itemsHtml = '<span class="tag yellow">No order matched within ±7 days / ±2%</span>';
     }
@@ -196,13 +201,16 @@ async function pushMemos() {
   $('push-result').innerHTML = '';
   let done = 0, errs = 0;
   for (let k = 0; k < todo.length; k++) {
+    const idx = matches.indexOf(todo[k]);
+    const inputEl = document.querySelector('.memo-input[data-i="' + idx + '"]');
+    const memo = inputEl ? inputEl.value.trim() : todo[k].memo;
     try {
       const r = await fetch(
         'https://api.youneedabudget.com/v1/budgets/' + BUDGET_ID + '/transactions/' + todo[k].tx.id,
         {
           method: 'PUT',
           headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transaction: { memo: todo[k].memo } })
+          body: JSON.stringify({ transaction: { memo, category_id: null } })
         }
       );
       if (!r.ok) throw new Error();
