@@ -4,6 +4,7 @@ const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 let TOKEN = '', BUDGET_ID = '', YNAB_DAYS = 30;
 let amazonOrders = [];
 let matches = [];
+let skippedTxs = []; // Amazon txs hidden because they already have memos
 let phase = 'idle'; // 'idle' | 'scraping' | 'matching' | 'results' | 'error'
 
 function show(id) { $(id).classList.remove('hidden'); }
@@ -35,7 +36,7 @@ async function init() {
   });
   TOKEN = s.ynabToken;
   BUDGET_ID = s.ynabBudgetId;
-  YNAB_DAYS = s.ynabDays || 45;
+  YNAB_DAYS = s.ynabDays || 30;
   if (!TOKEN || !BUDGET_ID) {
     showError('YNAB token or budget not set. Open Settings.');
     return;
@@ -100,10 +101,9 @@ async function runMatching() {
     const allAmazon = d.data.transactions.filter((t) =>
       t.payee_name && t.payee_name.toLowerCase().includes('amazon') && t.amount < 0
     );
+    skippedTxs = allAmazon.filter((t) => t.memo);
     const txs = allAmazon.filter((t) => !t.memo);
-    const skipped = allAmazon.length - txs.length;
     matches = doMatch(txs, amazonOrders);
-    matches._skippedWithMemo = skipped;
     setProgress(100, 'Done', 'Matching to YNAB');
     setTimeout(render, 200);
   } catch (e) {
@@ -137,51 +137,158 @@ function doMatch(txs, orders) {
   return results;
 }
 
+// Build a single match card element and wire up its checkbox.
+function makeMatchCard(m, i) {
+  const amt = (Math.abs(m.tx.amount) / 1000).toFixed(2);
+  const el = document.createElement('div');
+  el.className = 'match-card ' + (m.matched ? 'ok' : 'miss');
+  el.dataset.matchIdx = i;
+  let itemsHtml = '';
+  if (m.matched) {
+    const items = m.order && m.order.items && m.order.items.length;
+    itemsHtml = items
+      ? m.order.items.map((it) => '<span class="tag green">' + esc(it.title) + '</span>').join('')
+      : '<span class="tag yellow">Matched by amount — no item names</span>';
+    if (m.unskipped) {
+      itemsHtml = '<span class="tag yellow">Existing memo — included manually</span>';
+    }
+    if (m.memo) {
+      itemsHtml += '<div class="memo-preview">' +
+        '<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Memo (editable)</label>' +
+        '<input class="memo-input" data-i="' + i + '" type="text" value="' + esc(m.memo) + '" maxlength="200" ' +
+        'style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:12px">' +
+        '</div>';
+    }
+  } else {
+    itemsHtml = '<span class="tag yellow">No order matched within ±7 days / ±2%</span>';
+  }
+  el.innerHTML =
+    '<div class="match-top">' +
+      '<div class="check ' + (m.sel ? 'on' : '') + '" data-i="' + i + '" style="' + (m.matched ? '' : 'visibility:hidden') + '"></div>' +
+      '<div class="dot ' + (m.matched ? 'ok' : 'miss') + '"></div>' +
+      '<div class="match-info">' +
+        '<div class="match-payee">' + esc(m.tx.payee_name || 'Amazon') + '</div>' +
+        '<div class="match-meta">' + m.tx.date + ' · ' + esc(m.tx.account_name || '') + '</div>' +
+      '</div>' +
+      '<div class="match-amt">$' + amt + '</div>' +
+    '</div>' +
+    '<div class="match-items">' + itemsHtml + '</div>';
+  el.querySelector('.check').addEventListener('click', (e) => {
+    const idx = parseInt(e.currentTarget.dataset.i, 10);
+    matches[idx].sel = !matches[idx].sel;
+    e.currentTarget.className = 'check ' + (matches[idx].sel ? 'on' : '');
+  });
+  return el;
+}
+
+// Build a skipped card element with an Include button.
+function makeSkippedCard(tx, skippedIdx) {
+  const amt = (Math.abs(tx.amount) / 1000).toFixed(2);
+  const el = document.createElement('div');
+  el.className = 'match-card miss';
+  el.dataset.skippedIdx = skippedIdx;
+  el.innerHTML =
+    '<div class="match-top">' +
+      '<div class="dot miss"></div>' +
+      '<div class="match-info">' +
+        '<div class="match-payee">' + esc(tx.payee_name || 'Amazon') + '</div>' +
+        '<div class="match-meta">' + tx.date + ' · ' + esc(tx.account_name || '') + '</div>' +
+      '</div>' +
+      '<div class="match-amt">$' + amt + '</div>' +
+    '</div>' +
+    '<div class="match-items">' +
+      '<span class="tag yellow">Existing memo: ' + esc(tx.memo) + '</span>' +
+      '<button class="btn btn-ghost btn-sm unskip-btn" style="margin-left:auto;display:block;margin-top:6px">Include</button>' +
+    '</div>';
+  el.querySelector('.unskip-btn').addEventListener('click', () => unskipTx(tx, skippedIdx));
+  return el;
+}
+
+function updateSummary() {
+  const ok = matches.filter((m) => m.matched);
+  const miss = matches.filter((m) => !m.matched);
+  $('match-summary').textContent = ok.length + ' matched · ' + miss.length + ' unmatched' +
+    (skippedTxs.length ? ' · ' + skippedTxs.length + ' skipped (already have memos)' : '');
+}
+
 function render() {
   phase = 'results';
   hide('progress-section');
   show('results');
-  const ok = matches.filter((m) => m.matched);
-  const miss = matches.filter((m) => !m.matched);
-  const skipped = matches._skippedWithMemo || 0;
-  $('match-summary').textContent = ok.length + ' matched · ' + miss.length + ' unmatched' +
-    (skipped ? ' · ' + skipped + ' skipped (already have memos)' : '');
+
   const list = $('match-list');
   list.innerHTML = '';
+
+  const ok = matches.filter((m) => m.matched);
+  const miss = matches.filter((m) => !m.matched);
   ok.concat(miss).forEach((m) => {
     const i = matches.indexOf(m);
-    const amt = (Math.abs(m.tx.amount) / 1000).toFixed(2);
-    const el = document.createElement('div');
-    el.className = 'match-card ' + (m.matched ? 'ok' : 'miss');
-    let itemsHtml = '';
-    if (m.matched) {
-      itemsHtml = (m.order.items.length
-        ? m.order.items.map((it) => '<span class="tag green">' + esc(it.title) + '</span>').join('')
-        : '<span class="tag yellow">Matched by amount — no item names</span>');
-      if (m.memo) itemsHtml += '<div class="memo-preview"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Memo (editable)</label><input class="memo-input" data-i="' + i + '" type="text" value="' + esc(m.memo) + '" maxlength="200" style="width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:12px"></div>';
+    list.appendChild(makeMatchCard(m, i));
+  });
+
+  renderSkippedSection();
+  updateSummary();
+}
+
+function renderSkippedSection() {
+  // Remove any existing skipped section before re-rendering it.
+  const existing = $('skipped-section');
+  if (existing) existing.remove();
+  if (!skippedTxs.length) return;
+
+  const section = document.createElement('div');
+  section.id = 'skipped-section';
+  section.style.marginTop = '16px';
+
+  const toggle = document.createElement('button');
+  toggle.className = 'btn btn-ghost btn-sm';
+  toggle.style.cssText = 'width:100%;text-align:left;margin-bottom:8px;color:var(--muted)';
+  toggle.dataset.open = 'false';
+  toggle.textContent = '▶ ' + skippedTxs.length + ' skipped transaction' + (skippedTxs.length !== 1 ? 's' : '') + ' (already have memos) — click to expand';
+
+  const inner = document.createElement('div');
+  inner.id = 'skipped-list';
+  inner.className = 'hidden';
+
+  skippedTxs.forEach((tx, idx) => {
+    inner.appendChild(makeSkippedCard(tx, idx));
+  });
+
+  toggle.addEventListener('click', () => {
+    const open = toggle.dataset.open === 'true';
+    toggle.dataset.open = String(!open);
+    if (open) {
+      inner.classList.add('hidden');
+      toggle.textContent = '▶ ' + skippedTxs.length + ' skipped transaction' + (skippedTxs.length !== 1 ? 's' : '') + ' (already have memos) — click to expand';
     } else {
-      itemsHtml = '<span class="tag yellow">No order matched within ±7 days / ±2%</span>';
+      inner.classList.remove('hidden');
+      toggle.textContent = '▼ ' + skippedTxs.length + ' skipped transaction' + (skippedTxs.length !== 1 ? 's' : '') + ' (already have memos)';
     }
-    el.innerHTML =
-      '<div class="match-top">' +
-        '<div class="check ' + (m.sel ? 'on' : '') + '" data-i="' + i + '" style="' + (m.matched ? '' : 'visibility:hidden') + '"></div>' +
-        '<div class="dot ' + (m.matched ? 'ok' : 'miss') + '"></div>' +
-        '<div class="match-info">' +
-          '<div class="match-payee">' + esc(m.tx.payee_name || 'Amazon') + '</div>' +
-          '<div class="match-meta">' + m.tx.date + ' · ' + esc(m.tx.account_name || '') + '</div>' +
-        '</div>' +
-        '<div class="match-amt">$' + amt + '</div>' +
-      '</div>' +
-      '<div class="match-items">' + itemsHtml + '</div>';
-    list.appendChild(el);
   });
-  list.querySelectorAll('.check').forEach((node) => {
-    node.addEventListener('click', () => {
-      const i = parseInt(node.dataset.i, 10);
-      matches[i].sel = !matches[i].sel;
-      node.className = 'check ' + (matches[i].sel ? 'on' : '');
-    });
-  });
+
+  section.appendChild(toggle);
+  section.appendChild(inner);
+  $('match-list').after(section);
+}
+
+// Move a skipped tx into the active matches list without re-rendering existing cards.
+function unskipTx(tx, skippedIdx) {
+  // Remove from skipped list.
+  skippedTxs.splice(skippedIdx, 1);
+
+  // Create a new match entry using the tx's existing memo, pre-filled and editable.
+  const m = { tx, order: null, memo: tx.memo, sel: true, matched: true, unskipped: true };
+  matches.push(m);
+  const i = matches.length - 1;
+
+  // Insert the new card at the top of the match list so it's easy to see.
+  const list = $('match-list');
+  const card = makeMatchCard(m, i);
+  list.insertBefore(card, list.firstChild);
+
+  // Rebuild the skipped section to reflect new indices and count.
+  renderSkippedSection();
+  updateSummary();
 }
 
 function toggleAll(v) {
