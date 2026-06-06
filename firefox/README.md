@@ -1,6 +1,6 @@
 # YNAB Companion — Firefox Extension
 
-Firefox port of the YNAB Companion Chrome extension with full feature parity.
+Firefox extension for automating YNAB busywork — full feature parity with the Chrome extension.
 
 ## Features
 

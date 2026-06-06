@@ -29,10 +29,6 @@ Firefox port of the Chrome extension with full feature parity. Uses Manifest V3.
 
 Plain JavaScript modules (no browser-extension APIs) used by both extensions.
 
-### [`amazon-ynab.html`](./amazon-ynab.html) — Standalone HTML Tool (legacy)
-
-An earlier single-file version of the Amazon → YNAB matcher. Open locally in Chrome — no install needed. The Chrome extension above supersedes this for most workflows, but the HTML file is useful for one-off runs without installing the extension.
-
 ## Requirements
 
 - Chrome or Firefox (for the extensions)
