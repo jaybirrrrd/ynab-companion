@@ -1,6 +1,6 @@
 // Background service worker for YNAB Companion.
 // Orchestrates Amazon scraping and Claude-based summarization.
-// Progress is mirrored to chrome.storage.local under `scrapeStatus` so the
+// Progress is mirrored to storage.local under `scrapeStatus` so the
 // review tab can render a live progress UI even if it opens late or refreshes.
 
 import { callClaudeSummarize } from './shared/anthropic-api.js';
