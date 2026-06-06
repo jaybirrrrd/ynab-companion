@@ -1,3 +1,6 @@
+import { api } from '../shared/browser-polyfill.js';
+import { fetchBudgets } from '../shared/ynab-api.js';
+
 const $ = (id) => document.getElementById(id);
 
 const DEFAULTS = {
@@ -10,7 +13,7 @@ const DEFAULTS = {
 };
 
 async function load() {
-  const s = await chrome.storage.local.get(DEFAULTS);
+  const s = await api.storage.local.get(DEFAULTS);
   $('ynab-token').value = s.ynabToken || '';
   $('anthropic-key').value = s.anthropicKey || '';
   $('anthropic-model').value = s.anthropicModel || DEFAULTS.anthropicModel;
@@ -26,13 +29,9 @@ async function populateBudgets(token, selectedId) {
   sel.innerHTML = '<option value="">— loading… —</option>';
   sel.disabled = true;
   try {
-    const r = await fetch('https://api.youneedabudget.com/v1/budgets', {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    if (!r.ok) throw new Error('Status ' + r.status + ' — check your token');
-    const d = await r.json();
+    const budgets = await fetchBudgets(token);
     sel.innerHTML = '<option value="">— choose —</option>';
-    d.data.budgets.forEach((b) => {
+    budgets.forEach((b) => {
       const o = document.createElement('option');
       o.value = b.id;
       o.textContent = b.name;
@@ -41,7 +40,7 @@ async function populateBudgets(token, selectedId) {
       sel.appendChild(o);
     });
     sel.disabled = false;
-    showMsg('ynab-msg', 'success', '✓ Connected — ' + d.data.budgets.length + ' budget(s) available');
+    showMsg('ynab-msg', 'success', '✓ Connected — ' + budgets.length + ' budget(s) available');
   } catch (e) {
     sel.innerHTML = '<option value="">— failed to load —</option>';
     showMsg('ynab-msg', 'error', '⚠ ' + e.message);
@@ -66,7 +65,7 @@ $('save').addEventListener('click', async () => {
   const sel = $('budget');
   const selectedOpt = sel.options[sel.selectedIndex];
   const days = parseInt($('ynab-days').value, 10);
-  await chrome.storage.local.set({
+  await api.storage.local.set({
     ynabToken: $('ynab-token').value.trim(),
     ynabBudgetId: sel.value,
     ynabBudgetName: selectedOpt ? selectedOpt.dataset.name || selectedOpt.textContent : '',

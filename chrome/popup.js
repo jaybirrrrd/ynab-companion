@@ -1,3 +1,5 @@
+import { api } from '../shared/browser-polyfill.js';
+
 const $ = (id) => document.getElementById(id);
 
 function setStatus(text, kind) {
@@ -10,7 +12,7 @@ function setStatus(text, kind) {
 }
 
 async function readSettings() {
-  return chrome.storage.local.get({
+  return api.storage.local.get({
     ynabToken: '', ynabBudgetId: '', ynabBudgetName: '',
     anthropicKey: '', anthropicModel: 'claude-haiku-4-5-20251001',
     ynabDays: 45, scrapeStatus: null
@@ -50,31 +52,31 @@ async function refreshUi() {
 }
 
 $('settings-link').addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
+  api.runtime.openOptionsPage();
 });
 
 $('scrape-btn').addEventListener('click', async () => {
   const s = await readSettings();
   if (!settingsComplete(s)) {
-    chrome.runtime.openOptionsPage();
+    api.runtime.openOptionsPage();
     return;
   }
   $('scrape-btn').disabled = true;
   $('checks-btn').disabled = true;
   setStatus('Starting scrape…');
-  chrome.runtime.sendMessage({ type: 'start-scrape' });
+  api.runtime.sendMessage({ type: 'start-scrape' });
   // Background opens the review tab. Close popup so the new tab takes focus.
   setTimeout(() => window.close(), 250);
 });
 
 $('checks-btn').addEventListener('click', async () => {
-  const url = chrome.runtime.getURL('check-cleanup.html');
-  await chrome.tabs.create({ url });
+  const url = api.runtime.getURL('check-cleanup.html');
+  await api.tabs.create({ url });
   window.close();
 });
 
 // Live-update popup status if the user reopens it during a run.
-chrome.storage.onChanged.addListener((changes, area) => {
+api.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.scrapeStatus) refreshUi();
 });
 

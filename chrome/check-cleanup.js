@@ -1,3 +1,6 @@
+import { api } from '../shared/browser-polyfill.js';
+import { fetchTransactions, patchTransaction } from '../shared/ynab-api.js';
+
 const $ = (id) => document.getElementById(id);
 const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -39,14 +42,9 @@ async function scan() {
 
   try {
     const since = new Date(); since.setDate(since.getDate() - days);
-    const r = await fetch(
-      'https://api.youneedabudget.com/v1/budgets/' + BUDGET_ID + '/transactions?since_date=' + since.toISOString().split('T')[0],
-      { headers: { Authorization: 'Bearer ' + TOKEN } }
-    );
-    if (!r.ok) throw new Error('YNAB error ' + r.status);
-    const d = await r.json();
+    const txns = await fetchTransactions(TOKEN, BUDGET_ID, since.toISOString().split('T')[0]);
     candidates = [];
-    d.data.transactions.forEach((t) => {
+    txns.forEach((t) => {
       if (!t.payee_name) return;
       const m = t.payee_name.match(pattern);
       if (!m) return;
@@ -134,22 +132,11 @@ async function apply() {
   let done = 0, errs = 0;
   for (let k = 0; k < todo.length; k++) {
     try {
-      const body = {
-        transaction: {
-          payee_id: null,
-          payee_name: null,
-          memo: todo[k].proposedMemo
-        }
-      };
-      const r = await fetch(
-        'https://api.youneedabudget.com/v1/budgets/' + BUDGET_ID + '/transactions/' + todo[k].tx.id,
-        {
-          method: 'PUT',
-          headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        }
-      );
-      if (!r.ok) throw new Error(await r.text());
+      await patchTransaction(TOKEN, BUDGET_ID, todo[k].tx.id, {
+        payee_id: null,
+        payee_name: null,
+        memo: todo[k].proposedMemo
+      });
       done++;
     } catch (_) { errs++; }
     const pct = Math.round(((done + errs) / todo.length) * 100);
@@ -164,7 +151,7 @@ async function apply() {
 }
 
 async function init() {
-  const s = await chrome.storage.local.get({ ynabToken: '', ynabBudgetId: '' });
+  const s = await api.storage.local.get({ ynabToken: '', ynabBudgetId: '' });
   TOKEN = s.ynabToken;
   BUDGET_ID = s.ynabBudgetId;
   if (!TOKEN || !BUDGET_ID) {
@@ -178,6 +165,6 @@ $('scan-btn').addEventListener('click', scan);
 $('select-all').addEventListener('click', () => toggleAll(true));
 $('deselect-all').addEventListener('click', () => toggleAll(false));
 $('apply-btn').addEventListener('click', apply);
-$('open-settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
+$('open-settings').addEventListener('click', () => api.runtime.openOptionsPage());
 
 init();
