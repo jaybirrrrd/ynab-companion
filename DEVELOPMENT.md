@@ -37,16 +37,26 @@ shared/      Plain JS modules shared by both extensions
 
 ### Adding new shared code
 
-- If a function has no `browser.*` / `chrome.*` calls and could be used by both extensions, put it in `shared/`.
-- Import it with a relative path: `import { myFn } from '../shared/my-module.js'`
-- Never put browser-extension API calls in `shared/` — use the `api` shim from `browser-polyfill.js` in the extension files themselves, or pass the needed API calls in as arguments.
+Browser extensions can only serve files from within their own directory, so `shared/` at the repo root is the **canonical source** — each extension carries its own copy at `chrome/shared/` and `firefox/shared/`.
+
+**Workflow for editing shared code:**
+1. Edit the file in `shared/` (e.g., `shared/ynab-api.js`)
+2. Copy it into both extensions: `cp shared/ynab-api.js chrome/shared/ && cp shared/ynab-api.js firefox/shared/`
+3. Reload the extension(s) in the browser
+
+**Adding a new shared module:**
+1. Create the file in `shared/`
+2. Copy it into `chrome/shared/` and `firefox/shared/`
+3. Import it with `import { myFn } from './shared/my-module.js'` from within the extension JS file
+
+Never put browser-extension API calls in `shared/` — use the `api` shim from `browser-polyfill.js` in the extension files themselves.
 
 ## browser / chrome namespace compatibility
 
 All extension JS files import `api` from `shared/browser-polyfill.js`:
 
 ```js
-import { api } from '../shared/browser-polyfill.js';
+import { api } from './shared/browser-polyfill.js';
 ```
 
 `api` resolves to `browser` when running in Firefox (native Promise-based API) and falls back to `chrome` in Chrome. Use `api.*` everywhere — never use `chrome.*` or `browser.*` directly.

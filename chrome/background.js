@@ -3,8 +3,8 @@
 // Progress is mirrored to chrome.storage.local under `scrapeStatus` so the
 // review tab can render a live progress UI even if it opens late or refreshes.
 
-import { callClaudeSummarize } from '../shared/anthropic-api.js';
-import { api } from '../shared/browser-polyfill.js';
+import { callClaudeSummarize } from './shared/anthropic-api.js';
+import { api } from './shared/browser-polyfill.js';
 
 const TXN_URL = 'https://www.amazon.com/cpe/yourpayments/transactions';
 const ORDERS_URL_P1 = 'https://www.amazon.com/your-orders/orders?timeFilter=months-3&startIndex=0';

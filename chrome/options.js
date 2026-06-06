@@ -1,5 +1,5 @@
-import { api } from '../shared/browser-polyfill.js';
-import { fetchBudgets } from '../shared/ynab-api.js';
+import { api } from './shared/browser-polyfill.js';
+import { fetchBudgets } from './shared/ynab-api.js';
 
 const $ = (id) => document.getElementById(id);
 

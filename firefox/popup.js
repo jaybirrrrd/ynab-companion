@@ -1,4 +1,4 @@
-import { api } from '../shared/browser-polyfill.js';
+import { api } from './shared/browser-polyfill.js';
 
 const $ = (id) => document.getElementById(id);
 

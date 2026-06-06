@@ -1,5 +1,5 @@
-import { api } from '../shared/browser-polyfill.js';
-import { fetchTransactions, patchTransaction } from '../shared/ynab-api.js';
+import { api } from './shared/browser-polyfill.js';
+import { fetchTransactions, patchTransaction } from './shared/ynab-api.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
