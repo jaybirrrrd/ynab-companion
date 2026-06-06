@@ -1,3 +1,6 @@
+import { api } from './shared/browser-polyfill.js';
+import { fetchTransactions, patchTransaction } from './shared/ynab-api.js';
+
 const $ = (id) => document.getElementById(id);
 const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -30,7 +33,7 @@ function setProgress(pct, label, title, hint) {
 }
 
 async function init() {
-  const s = await chrome.storage.local.get({
+  const s = await api.storage.local.get({
     ynabToken: '', ynabBudgetId: '', ynabDays: 30,
     pendingScrape: null, scrapeStatus: null
   });
@@ -47,7 +50,7 @@ async function init() {
     phase = 'scraping';
     setProgress(status.percent || 0, status.label || 'Working…', 'Scraping Amazon',
       'Hidden Chrome window is opening Amazon pages in the background. Don\'t close this tab.');
-    chrome.storage.onChanged.addListener(onStorageChange);
+    api.storage.onChanged.addListener(onStorageChange);
     return;
   }
   if (status && status.status === 'error') {
@@ -69,9 +72,9 @@ function onStorageChange(changes, area) {
   if (next.status === 'running' && phase === 'scraping') {
     setProgress(next.percent || 0, next.label || 'Working…');
   } else if (next.status === 'done' && phase === 'scraping') {
-    chrome.storage.onChanged.removeListener(onStorageChange);
+    api.storage.onChanged.removeListener(onStorageChange);
     setProgress(100, 'Scrape complete', 'Scraping Amazon');
-    chrome.storage.local.get({ pendingScrape: null }).then((s) => {
+    api.storage.local.get({ pendingScrape: null }).then((s) => {
       if (s.pendingScrape && s.pendingScrape.orders) {
         amazonOrders = s.pendingScrape.orders;
         runMatching();
@@ -80,7 +83,7 @@ function onStorageChange(changes, area) {
       }
     });
   } else if (next.status === 'error' && phase === 'scraping') {
-    chrome.storage.onChanged.removeListener(onStorageChange);
+    api.storage.onChanged.removeListener(onStorageChange);
     showError(next.errorMessage || 'Scrape failed');
   }
 }
@@ -91,14 +94,9 @@ async function runMatching() {
     'Pulling the last ' + YNAB_DAYS + ' days of YNAB transactions to match against.');
   try {
     const since = new Date(); since.setDate(since.getDate() - YNAB_DAYS);
-    const r = await fetch(
-      'https://api.youneedabudget.com/v1/budgets/' + BUDGET_ID + '/transactions?since_date=' + since.toISOString().split('T')[0],
-      { headers: { Authorization: 'Bearer ' + TOKEN } }
-    );
-    if (!r.ok) throw new Error('YNAB error ' + r.status);
-    const d = await r.json();
+    const txns = await fetchTransactions(TOKEN, BUDGET_ID, since.toISOString().split('T')[0]);
     setProgress(70, 'Matching transactions…', 'Matching to YNAB');
-    const allAmazon = d.data.transactions.filter((t) =>
+    const allAmazon = txns.filter((t) =>
       t.payee_name && t.payee_name.toLowerCase().includes('amazon') && t.amount < 0
     );
     skippedTxs = allAmazon.filter((t) => t.memo);
@@ -312,15 +310,7 @@ async function pushMemos() {
     const inputEl = document.querySelector('.memo-input[data-i="' + idx + '"]');
     const memo = inputEl ? inputEl.value.trim() : todo[k].memo;
     try {
-      const r = await fetch(
-        'https://api.youneedabudget.com/v1/budgets/' + BUDGET_ID + '/transactions/' + todo[k].tx.id,
-        {
-          method: 'PUT',
-          headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transaction: { memo, category_id: null } })
-        }
-      );
-      if (!r.ok) throw new Error();
+      await patchTransaction(TOKEN, BUDGET_ID, todo[k].tx.id, { memo, category_id: null });
       done++;
     } catch (_) { errs++; }
     const pct = Math.round(((done + errs) / todo.length) * 100);
@@ -337,6 +327,6 @@ async function pushMemos() {
 $('select-all').addEventListener('click', () => toggleAll(true));
 $('deselect-all').addEventListener('click', () => toggleAll(false));
 $('push-btn').addEventListener('click', pushMemos);
-$('open-settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
+$('open-settings').addEventListener('click', () => api.runtime.openOptionsPage());
 
 init();

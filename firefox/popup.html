@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>YNAB Companion</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="popup">
+  <div class="logo">YNAB <em>Companion</em></div>
+  <div class="tagline" id="budget-line">No budget selected</div>
+
+  <div class="action-stack">
+    <button class="btn btn-primary" id="scrape-btn">Scrape &amp; tag Amazon</button>
+    <button class="btn btn-ghost" id="checks-btn">Clean check transactions</button>
+  </div>
+
+  <div class="status hidden" id="status"></div>
+
+  <a class="footer-link" id="settings-link">Settings ›</a>
+
+<script type="module" src="popup.js"></script>
+</body>
+</html>

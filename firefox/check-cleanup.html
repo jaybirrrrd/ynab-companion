@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>YNAB Companion · Clean Check Transactions</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+<div class="wrap">
+  <div class="logo">YNAB <em>Companion</em></div>
+  <div class="tagline">Check Cleanup</div>
+
+  <div class="section">
+    <div class="section-title">Scan</div>
+    <div class="row">
+      <div class="field" style="flex:1;min-width:200px">
+        <label>Days back</label>
+        <input type="text" id="days" value="60">
+      </div>
+      <div class="field" style="flex:2;min-width:240px">
+        <label>Payee match (regex, case-insensitive)</label>
+        <input type="text" id="pattern" value="check\b[^\d]*(\d+)">
+      </div>
+    </div>
+    <div class="hint">First capture group is the check number. If your regex has no capture group, the first run of digits in the match is used. Default matches “Check 1234”, “CHECK#1234”, “Check Paid #1234”, etc.</div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-primary" id="scan-btn">Scan</button>
+      <span class="prog-label" id="scan-status"></span>
+    </div>
+    <div id="scan-msg"></div>
+  </div>
+
+  <div id="results" class="hidden">
+    <div class="row" style="justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-family:'Instrument Serif',serif;font-size:20px">Candidates</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="results-summary"></div>
+      </div>
+      <div class="row">
+        <button class="btn btn-ghost btn-sm" id="deselect-all">Deselect all</button>
+        <button class="btn btn-ghost btn-sm" id="select-all">Select all</button>
+      </div>
+    </div>
+
+    <div id="match-list"></div>
+    <div class="divider"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn btn-primary" id="apply-btn">Apply to YNAB</button>
+    </div>
+    <div id="apply-prog" class="hidden" style="margin-top:12px">
+      <div class="prog-label" id="apply-label">Updating…</div>
+      <div class="prog-wrap"><div class="prog-bar" id="apply-bar" style="width:0%"></div></div>
+    </div>
+    <div id="apply-result"></div>
+  </div>
+
+  <div id="error" class="hidden">
+    <div class="alert alert-error" id="error-text"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn btn-ghost btn-sm" id="open-settings">Open Settings</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="check-cleanup.js"></script>
+</body>
+</html>

@@ -3,14 +3,17 @@
 // Progress is mirrored to chrome.storage.local under `scrapeStatus` so the
 // review tab can render a live progress UI even if it opens late or refreshes.
 
+import { callClaudeSummarize } from './shared/anthropic-api.js';
+import { api } from './shared/browser-polyfill.js';
+
 const TXN_URL = 'https://www.amazon.com/cpe/yourpayments/transactions';
 const ORDERS_URL_P1 = 'https://www.amazon.com/your-orders/orders?timeFilter=months-3&startIndex=0';
 const ORDERS_URL_P2 = 'https://www.amazon.com/your-orders/orders?timeFilter=months-3&startIndex=10';
 
 async function setStatus(patch) {
-  const cur = (await chrome.storage.local.get({ scrapeStatus: null })).scrapeStatus || {};
+  const cur = (await api.storage.local.get({ scrapeStatus: null })).scrapeStatus || {};
   const next = { ...cur, ...patch, updatedAt: Date.now() };
-  await chrome.storage.local.set({ scrapeStatus: next });
+  await api.storage.local.set({ scrapeStatus: next });
 }
 
 async function progress(percent, label) {
@@ -30,22 +33,22 @@ function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 function waitForTabComplete(tabId, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(listener);
+      api.tabs.onUpdated.removeListener(listener);
       reject(new Error('Tab load timed out'));
     }, timeoutMs);
     const listener = (id, info) => {
       if (id === tabId && info.status === 'complete') {
         clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
+        api.tabs.onUpdated.removeListener(listener);
         resolve();
       }
     };
-    chrome.tabs.onUpdated.addListener(listener);
+    api.tabs.onUpdated.addListener(listener);
   });
 }
 
 async function runScript(tabId, file) {
-  const results = await chrome.scripting.executeScript({
+  const results = await api.scripting.executeScript({
     target: { tabId },
     files: [file]
   });
@@ -54,13 +57,13 @@ async function runScript(tabId, file) {
 }
 
 async function openHiddenWindowWithTab(url) {
-  const win = await chrome.windows.create({
+  const win = await api.windows.create({
     url,
     state: 'minimized',
     focused: false,
     type: 'normal'
   });
-  try { await chrome.windows.update(win.id, { state: 'minimized', focused: false }); } catch (_) {}
+  try { await api.windows.update(win.id, { state: 'minimized', focused: false }); } catch (_) {}
   const tabId = win.tabs[0].id;
   await waitForTabComplete(tabId);
   await sleep(1500);
@@ -68,78 +71,21 @@ async function openHiddenWindowWithTab(url) {
 }
 
 async function openHiddenTabInWindow(windowId, url) {
-  const tab = await chrome.tabs.create({ windowId, url, active: false });
+  const tab = await api.tabs.create({ windowId, url, active: false });
   await waitForTabComplete(tab.id);
   await sleep(1500);
   return tab.id;
 }
 
-async function callClaudeSummarize({ apiKey, model, orders }) {
-  const flatItems = [];
-  orders.forEach((o, oi) => {
-    (o.items || []).forEach((it, ii) => {
-      flatItems.push({ oi, ii, title: it.title });
-    });
-  });
-  if (!flatItems.length) return orders;
-
-  const userPrompt = [
-    'You will receive a JSON array of Amazon item titles. For each, return a 1–4 word summary suitable for a budget memo (e.g., "Band Saw Blades", "Polymer Clay", "USB Cable").',
-    'Return ONLY a JSON array of strings, the same length and order as the input. No commentary, no code fences.',
-    '',
-    'Input:',
-    JSON.stringify(flatItems.map((x) => x.title))
-  ].join('\n');
-
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: userPrompt }]
-    })
-  });
-  if (!r.ok) {
-    const txt = await r.text();
-    throw new Error('Claude API ' + r.status + ': ' + txt.slice(0, 200));
-  }
-  const data = await r.json();
-  const content = (data.content || []).map((b) => b.text || '').join('').trim();
-  const start = content.indexOf('[');
-  const end = content.lastIndexOf(']');
-  if (start === -1 || end === -1) throw new Error('Claude returned non-JSON: ' + content.slice(0, 200));
-  let summaries;
-  try {
-    summaries = JSON.parse(content.slice(start, end + 1));
-  } catch (e) {
-    throw new Error('Claude JSON parse error: ' + e.message);
-  }
-  if (!Array.isArray(summaries) || summaries.length !== flatItems.length) {
-    throw new Error('Claude returned wrong-shape array: expected ' + flatItems.length + ' got ' + (Array.isArray(summaries) ? summaries.length : 'non-array'));
-  }
-  const out = orders.map((o) => ({ ...o, items: (o.items || []).map((it) => ({ ...it })) }));
-  flatItems.forEach((f, i) => {
-    const s = String(summaries[i] || '').trim();
-    if (s) out[f.oi].items[f.ii].title = s;
-  });
-  return out;
-}
-
 async function runScrape() {
-  const settings = await chrome.storage.local.get({
+  const settings = await api.storage.local.get({
     ynabToken: '', ynabBudgetId: '',
     anthropicKey: '', anthropicModel: 'claude-haiku-4-5-20251001'
   });
 
   // Reset progress state and clear any prior pendingScrape so the review tab
   // doesn't render stale results during the run.
-  await chrome.storage.local.set({
+  await api.storage.local.set({
     scrapeStatus: {
       status: 'running', percent: 1, label: 'Starting…',
       startedAt: Date.now(), finishedAt: null, errorMessage: null
@@ -149,7 +95,7 @@ async function runScrape() {
 
   // Open review tab right away so the user sees progress immediately.
   try {
-    await chrome.tabs.create({ url: chrome.runtime.getURL('review.html'), active: true });
+    await api.tabs.create({ url: api.runtime.getURL('review.html'), active: true });
   } catch (_) { /* non-fatal */ }
 
   if (!settings.ynabToken || !settings.ynabBudgetId) {
@@ -215,7 +161,7 @@ async function runScrape() {
     });
 
     await progress(95, 'Saving results…');
-    await chrome.storage.local.set({
+    await api.storage.local.set({
       pendingScrape: {
         orders: summarized,
         scrapedAt: Date.now(),
@@ -225,20 +171,20 @@ async function runScrape() {
     });
 
     if (windowId !== null) {
-      try { await chrome.windows.remove(windowId); } catch (_) {}
+      try { await api.windows.remove(windowId); } catch (_) {}
       windowId = null;
     }
 
     await finish();
   } catch (e) {
     if (windowId !== null) {
-      try { await chrome.windows.remove(windowId); } catch (_) {}
+      try { await api.windows.remove(windowId); } catch (_) {}
     }
     await fail(e.message || String(e));
   }
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
+api.runtime.onMessage.addListener((msg) => {
   if (msg && msg.type === 'start-scrape') {
     runScrape();
   }
