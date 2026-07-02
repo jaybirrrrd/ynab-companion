@@ -19,7 +19,7 @@ A Chrome extension for two YNAB chores:
 
 → See [chrome/README.md](./chrome/README.md) for install and usage instructions.
 
-### [`firefox/`](./firefox) — Firefox Extension *(in progress)*
+### [`firefox/`](./firefox) — Firefox Extension
 
 Firefox port of the Chrome extension with full feature parity. Uses Manifest V3.
 
